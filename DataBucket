@@ -1,0 +1,86 @@
+import numpy as np
+import math
+import pandas as pd
+import matplotlib.pyplot as plt
+from colorama import Fore
+
+data_sample = pd.read_csv('C:/amoly/data/data.csv', sep = ',')
+print(Fore.LIGHTYELLOW_EX)
+print(data_sample)
+
+timeline = data_sample['N_events'].tolist()
+print(Fore.LIGHTGREEN_EX)
+print(timeline)
+
+def cpmodel(data):
+    n = len(data)
+    dbar = np.mean(data)
+    dsbar = np.mean(np.multiply(data, data))
+    fac = dsbar - np.square(dbar)
+    summ = 0
+    summup = []
+    for z in range(n):
+        summ += data[z]
+        summup.append(summ)
+    y = [0]
+
+    for m in range(n - 1):
+        pos = m + 1
+        mscale = 4 * (pos) * (n - pos)
+        Q = summup[m] - (summ - summup[m])
+        U = -np.square(dbar * (n - 2 * pos) + Q) / float(mscale) + fac
+        y.append(-(n / float(2) - 1) * math.log(n * U / 2) - 0.5 * math.log((pos * (n - pos))))
+
+    z, zz = np.max(y), np.argmax(y)
+
+    mean1 = sum(data[:zz + 1]) / float(len(data[:zz + 1]))
+    mean2 = sum(data[(zz + 1):n]) / float(n - 1 - zz)
+
+    return y, zz, mean1, mean2
+
+y, zz, mean1, mean2 = cpmodel(timeline)
+print(y)
+print(zz)
+print(mean1)
+print(mean2)
+print(y, zz, mean1, mean2)
+data_sample['structure'] = pd.DataFrame.from_dict(y)
+print(data_sample)
+exit()
+labels = ['account', 'Jan', 'Feb', 'Mar']
+dataout = pd.DataFrame.from_dict(sales)
+
+import plotly
+from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
+import plotly.graph_objs as go
+df = pd.read_csv('data.csv', sep = ',')
+
+print(df.head())
+cols = df[2:3]
+
+trace_1 = go.Scatter(
+    x = df['date'],
+    y = df['# of connected users'],
+    mode = 'lines',
+    name = '# of connected users'
+
+)
+trace_2 = go.Scatter(
+    x = df['date'],
+    y = df['# of connections'],
+    mode = 'lines',
+    name = '# of connections'
+
+)
+layout = go.Layout(
+    title='dailyTrends',
+)
+
+fig = go.Figure(data = [trace_1, trace_2], layout = layout)
+plotly.offline.plot(fig, filename='file1.html')
+
+print(y)
+print(zz)
+print(mean1)
+print(mean2)
+print(y, zz, mean1, mean2)
