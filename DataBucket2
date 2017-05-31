@@ -1,0 +1,36 @@
+#import numpy
+import pandas as pd
+from sklearn.metrics import roc_curve
+from sklearn.neural_network import MLPClassifier
+import xlsxwriter
+from openpyxl import Workbook
+from sklearn import preprocessing
+import pickle
+
+import openpyxl
+import pymysql
+import os
+import time
+import xlsxwriter
+import smtplib
+from openpyxl import Workbook
+from email.mime.multipart import MIMEMultipart
+from email.mime.multipart import MIMEBase
+#from email import Encoders
+from email.mime.text import MIMEText
+from datetime import datetime, timedelta
+import csv
+from sqlalchemy import create_engine
+
+
+script_location = 'D:/ZOOM/CB_PredictionModel/initial_model_dataset_extract.sql'
+sql = open(script_location).read()
+engine_params = 'mysql://antonio:antonio_a9m8w3f5y8vawv9nyc8a7wx@db1-analysts.cloudmccloud.com:3306/db'
+
+engine = create_engine(engine_params)
+connection = engine.connect()
+#dataid = 1022
+resoverall = connection.execute(sql)
+df = pd.DataFrame(resoverall.fetchall())
+df.columns = resoverall.keys()
+print(df)
