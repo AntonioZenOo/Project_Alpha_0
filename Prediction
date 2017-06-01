@@ -1,0 +1,150 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import roc_curve, auc
+import matplotlib.pyplot as plt
+import pickle
+from sqlalchemy import create_engine
+from colorama import Fore
+try:
+    import pymysql
+    pymysql.install_as_MySQLdb()
+except ImportError:
+    pass
+
+
+script_location = 'D:/ZOOM/CB_PredictionModel/initial_model_dataset_extract.sql'
+sql = open(script_location).read()
+engine_params = 'mysql://antonio:antonio_a9m8w3f5y8vawv9nyc8a7wx@db2-analysts.cloudmccloud.com:3306/db'
+
+
+engine = create_engine(engine_params)
+connection = engine.connect()
+resoverall = connection.execute(sql)
+df = pd.DataFrame(resoverall.fetchall())
+df.columns = resoverall.keys()
+
+#Selecting columns
+#df1 = df.ix[:,0:2] # Remember that Python does not slice inclusive of the ending index.
+df_customer_info = df.ix[:,0:11].copy() # To avoid the case where changing df1 also changes df
+selection_list = list(df_customer_info.columns.values)
+print(Fore.GREEN)
+print('to email head: ',selection_list)
+print(type(selection_list))
+
+print(Fore.YELLOW)
+print(type(df_customer_info))
+
+df_dataset = df.drop(selection_list, axis=1)
+X = df_dataset.drop('IS_bad', axis=1)
+
+datasetX_mean = X.mean()
+datasetX_std = X.std()
+
+datasetX_mean.to_csv('D:/ZOOM/CB_PredictionModel/datasetX_mean.csv', ',', header=None)
+datasetX_std.to_csv('D:/ZOOM/CB_PredictionModel/datasetX_std.csv', ',', header=None)
+
+
+# 3 sigma filtration
+print(Fore.YELLOW)
+
+#datasetX_meanS = datasetX_mean.iloc[0,:]
+#datasetX_stdS = datasetX_std.iloc[0,:]
+
+#datasetX_mean_SQ = datasetX_mean.T.squeeze()
+#datasetX_std_SQ = datasetX_std.T.squeeze()
+
+
+print(type(datasetX_mean))
+print(datasetX_mean)
+print(datasetX_mean['N_order'])
+
+X_list = list(X.columns.values)
+print(X_list)
+X_filtered = pd.DataFrame()
+for col in X_list:
+    print(col)
+    X_filtered[col] = X[col].clip(
+        datasetX_mean[col]-2.6*datasetX_std[col],
+        datasetX_mean[col]+2.6*datasetX_std[col])
+
+print(X_filtered) # ? datasetX
+
+#standartization
+datasetX_min_SQ = X_filtered.min()
+datasetX_max_SQ = X_filtered.max()
+datasetX_mean_SQ = X_filtered.mean()
+#параметры модели храним
+datasetX_min_SQ.to_csv('D:/ZOOM/CB_PredictionModel/X_filt_min.csv', ',', header=None)
+datasetX_max_SQ.to_csv('D:/ZOOM/CB_PredictionModel/X_filt_max.csv', ',', header=None)
+datasetX_mean_SQ.to_csv('D:/ZOOM/CB_PredictionModel/X_filt_mean.csv', ',', header=None)
+
+X_stand = pd.DataFrame()
+for col in X_list:
+    X_stand[col] =(X_filtered[col] - datasetX_mean_SQ[col]) / (datasetX_max_SQ[col] - datasetX_min_SQ[col])
+
+dataset = X_stand
+dataset['IS_bad'] = df_dataset['IS_bad']
+print(Fore.CYAN)
+
+dataset.to_csv('D:/ZOOM/CB_PredictionModel/prepeared_data.csv', ',')
+dataset_check = pd.read_csv('D:/ZOOM/CB_PredictionModel/prepeared_data.csv',',')
+print(dataset.head())
+
+#Learning...
+
+X = dataset.drop('IS_bad', axis=1)
+y = dataset['IS_bad']
+Xtrn, Xtest, Ytrn, Ytest = train_test_split(X, y, test_size=0.4) # 40% - for tests / validation
+print('ready')
+
+clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(10, 2), random_state=1)
+
+print('learning...')
+clf.fit(Xtrn, Ytrn)
+print('done')
+print('evaluating...')
+
+#with open('/opt/Machine_Learning/MODEL2_data/MODEL2_1_coef_matrix_set3', 'wb') as f:pickle.dump(clf.coefs_, f)
+#with open('/opt/Machine_Learning/MODEL2_data/MODEL2_1_coef_matrix_set3', 'rb') as f:data_new = pickle.load(f)
+#print(data_new)
+
+with open('D:/ZOOM/CB_PredictionModel/MODEL2_1_Model_data3','wb') as f:pickle.dump(clf, f)
+with open('D:/ZOOM/CB_PredictionModel/MODEL2_1_Model_data3','rb') as f:data_new2 = pickle.load(f)
+print(data_new2)
+
+
+result2 = data_new2.predict_proba(Xtest)
+print(type(result2))
+
+output = pd.DataFrame(result2, columns = ['good','bad'])
+
+#Y = Ytest.reset_index(drop=True)
+#print(Y)
+#exit()
+output['IS_bad_fact'] = Ytest.reset_index(drop=True)
+
+print(output)
+print(Fore.YELLOW)
+print(Ytest)
+print(type(Ytest))
+
+output.to_csv('D:/ZOOM/CB_PredictionModel/result.csv', sep=',', encoding='utf-8', index=False)
+
+actual = Ytest.tolist()
+predictions = output['bad'].tolist()
+
+false_positive_rate, true_positive_rate, thresholds = roc_curve(actual, predictions)
+roc_auc = auc(false_positive_rate, true_positive_rate)
+plt.title('Receiver Operating Characteristic')
+plt.plot(false_positive_rate, true_positive_rate, 'b',
+label='AUC = %0.2f'% roc_auc)
+plt.legend(loc='lower right')
+plt.plot([0,1],[0,1],'r--')
+plt.xlim([-0.1,1.2])
+plt.ylim([-0.1,1.2])
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.show()
+
+print('done')
