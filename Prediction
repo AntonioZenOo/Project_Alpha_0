@@ -15,7 +15,7 @@ except ImportError:
 
 script_location = 'D:/ZOOM/CB_PredictionModel/initial_model_dataset_extract.sql'
 sql = open(script_location).read()
-engine_params = 'mysql://antonio:antonio_a9m8w3f5y8vawv9nyc8a7wx@db2-analysts.cloudmccloud.com:3306/db'
+engine_params = 'mysql://antonio:[pass]@[server].[].com:3306/db'
 
 
 engine = create_engine(engine_params)
